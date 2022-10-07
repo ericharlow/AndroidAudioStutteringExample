@@ -5,6 +5,7 @@
       <map>
         <entry key="app/src/main/res/drawable/ic_baseline_library_music_24.xml" value="0.191" />
         <entry key="app/src/main/res/layout/activity_audio_player.xml" value="0.3640625" />
+        <entry key="app/src/main/res/layout/track_selection_dialog.xml" value="0.3640625" />
       </map>
     </option>
   </component>
