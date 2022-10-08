@@ -323,7 +323,6 @@ public class DownloadTracker {
 //              /* onTracksSelectedListener= */ this,
 //              /* onDismissListener= */ this);
 //      trackSelectionDialog.show(fragmentManager, /* tag= */ null);
-      // TODO: come up with a plan to build the trackSelectionParameters that represent auto select
       onTracksSelected(DownloadHelper.getDefaultTrackSelectorParameters(context));
     }
 

@@ -1,18 +1,19 @@
 package com.example.androidaudiostutteringexample
 
-import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Debug
 import android.support.v4.media.MediaBrowserCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.demo.DemoUtil
-import com.google.android.exoplayer2.demo.IntentUtil
+import com.google.android.exoplayer2.offline.Download
+import com.google.android.exoplayer2.offline.DownloadManager
+import com.google.android.exoplayer2.offline.DownloadRequest
+import com.google.android.exoplayer2.source.dash.DashMediaSource
 
 class AudioService : MediaBrowserServiceCompat() {
 
@@ -31,7 +32,7 @@ class AudioService : MediaBrowserServiceCompat() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    if (!serviceForegrounded) internalStartForeground(createPlaceholderNotification())
+    if (!serviceForegrounded) internalStartForeground(createPreparingNotification())
 
     downloadAndPlayContent()
     return super.onStartCommand(intent, flags, startId)
@@ -59,15 +60,35 @@ class AudioService : MediaBrowserServiceCompat() {
   // Private helper functions
 
   private fun downloadAndPlayContent() {
-    Debug.waitForDebugger()
     // download content
+    val dataSourceFactory = DemoUtil.getDataSourceFactory(this)
     val renderersFactory = DemoUtil.buildRenderersFactory(this, false)
     val downloadTracker = DemoUtil.getDownloadTracker(this)
-    downloadTracker.toggleDownload(null, getInitialMediaItem(), renderersFactory)
-    // TODO: wait for download to complete
-    // prepare playback
-//    val intent = getIntent()
-//    val mediaItems = createMediaItems(intent)
+    val initialMediaItem = getInitialMediaItem()
+    downloadTracker.toggleDownload(null, initialMediaItem, renderersFactory)
+    val downloadManager = DemoUtil.getDownloadManager(this)
+    downloadManager.addListener(object : DownloadManager.Listener {
+      override fun onDownloadChanged(
+        downloadManager: DownloadManager, download: Download, finalException: Exception?) {
+        if (download.request.id == initialMediaItem.localConfiguration?.uri.toString() && download.state == Download.STATE_COMPLETED) {
+          // prepare playback
+          val mediaItem = buildMediaItem(download.request, initialMediaItem)
+          val mediaSource: DashMediaSource =
+            DashMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+
+          player = ExoPlayer.Builder(this@AudioService)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .build()
+          player.setMediaSource(mediaSource)
+          player.playWhenReady = true
+          player.playbackParameters = PlaybackParameters(1.75F, 1.0F)
+          player.addAnalyticsListener(analyticsListener)
+          player.prepare()
+          player.play()
+          notificationManager.notify(R.id.audio_player_notification_id, createStartingNotification())
+        }
+      }
+    })
   }
 
   private fun getInitialMediaItem(): MediaItem {
@@ -85,55 +106,32 @@ class AudioService : MediaBrowserServiceCompat() {
       ).build()
   }
 
-  private fun getIntent(): Intent {
-    val intent = Intent()
-    val mediaItem = getInitialMediaItem()
-    IntentUtil.addToIntent(listOf(mediaItem), intent)
-    intent.putExtra(IntentUtil.PREFER_EXTENSION_DECODERS_EXTRA, false)
-    return intent
+  private fun buildMediaItem(downloadRequest: DownloadRequest, initialMediaItem: MediaItem): MediaItem {
+    val mediaItemBuilder = MediaItem.Builder()
+      .setMediaId(downloadRequest.id)
+      .setUri(downloadRequest.uri)
+      .setMimeType(downloadRequest.mimeType)
+      .setMediaMetadata(MediaMetadata.Builder().setTitle(initialMediaItem.mediaMetadata.title).build())
+      .setDrmConfiguration(
+        MediaItem.DrmConfiguration.Builder(initialMediaItem.localConfiguration?.drmConfiguration?.scheme ?: C.WIDEVINE_UUID)
+          .setLicenseUri(initialMediaItem.localConfiguration?.drmConfiguration?.licenseUri)
+          .setLicenseRequestHeaders(emptyMap())
+          .setKeySetId(downloadRequest.keySetId)
+          .build())
+      .setStreamKeys(downloadRequest.streamKeys)
+    return mediaItemBuilder.build()
   }
 
-//  private fun createMediaItems(intent: Intent): List<MediaItem> {
-//    val action = intent.action
-//    val actionIsListView = IntentUtil.ACTION_VIEW_LIST == action
-//    if (!actionIsListView && IntentUtil.ACTION_VIEW != action) {
-//      Log.i("SBSS", "createMediaItems: unexpected intent action")
-//      return emptyList()
-//    }
-//    // Note: important to have download before here
-//    val mediaItems: List<MediaItem> =
-//      com.google.android.exoplayer2.demo.PlayerActivity.createMediaItems(
-//        intent,
-//        DemoUtil.getDownloadTracker( /* context= */this)
-//      )
-//    for (i in mediaItems.indices) {
-//      val mediaItem = mediaItems[i]
-//      if (!Util.checkCleartextTrafficPermitted(mediaItem)) {
-//        Log.i("SBSS", "createMediaItems: clear text network traffic not permitted")
-//        return emptyList()
-//      }
-//      if (Util.maybeRequestReadExternalStoragePermission( /* activity= */this, mediaItem)) {
-//        // The player will be reinitialized if the permission is granted.
-//        return emptyList()
-//      }
-//      val drmConfiguration = mediaItem.localConfiguration!!.drmConfiguration
-//      if (drmConfiguration != null) {
-//        if (Build.VERSION.SDK_INT < 18) {
-//          Log.i("SBSS", "createMediaItems: drm unsupported")
-//          return emptyList()
-//        } else if (!FrameworkMediaDrm.isCryptoSchemeSupported(drmConfiguration.scheme)) {
-//          Log.i("SBSS", "createMediaItems: drm scheme unsupported")
-//          return emptyList()
-//        }
-//      }
-//    }
-//    return mediaItems
-//  }
-
-  private fun createPlaceholderNotification(): Notification =
+  private fun createPreparingNotification(): Notification =
     NotificationCompat.Builder(this, "playback_controls_notification_channel")
       .setSmallIcon(R.drawable.ic_baseline_library_music_24)
       .setContentText(getString(R.string.preparing_playback_message))
+      .build()
+
+  private fun createStartingNotification(): Notification =
+    NotificationCompat.Builder(this, "playback_controls_notification_channel")
+      .setSmallIcon(R.drawable.ic_baseline_library_music_24)
+      .setContentText(getString(R.string.starting_playback_message))
       .build()
 
   private fun internalStartForeground(notification: Notification) {
@@ -152,5 +150,3 @@ class AudioService : MediaBrowserServiceCompat() {
     stopSelf()
   }
 }
-
-private fun Application.asApp(): App = this as App

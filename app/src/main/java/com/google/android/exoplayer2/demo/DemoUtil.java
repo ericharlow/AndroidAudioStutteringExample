@@ -82,6 +82,7 @@ public final class DemoUtil {
                 : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
     return new DefaultRenderersFactory(context.getApplicationContext())
+        .forceEnableMediaCodecAsynchronousQueueing()
         .setExtensionRendererMode(extensionRendererMode);
   }
 
