@@ -65,7 +65,8 @@ class AudioService : MediaBrowserServiceCompat() {
     val renderersFactory = DemoUtil.buildRenderersFactory(this, false)
     val downloadTracker = DemoUtil.getDownloadTracker(this)
     val initialMediaItem = getInitialMediaItem()
-    downloadTracker.toggleDownload(null, initialMediaItem, renderersFactory)
+    val deleted = downloadTracker.toggleDownload(null, initialMediaItem, renderersFactory)
+    if (deleted) { notificationManager.notify(R.id.audio_player_notification_id, createRestartNotification()) }
     val downloadManager = DemoUtil.getDownloadManager(this)
     downloadManager.addListener(object : DownloadManager.Listener {
       override fun onDownloadChanged(
@@ -132,6 +133,12 @@ class AudioService : MediaBrowserServiceCompat() {
     NotificationCompat.Builder(this, "playback_controls_notification_channel")
       .setSmallIcon(R.drawable.ic_baseline_library_music_24)
       .setContentText(getString(R.string.starting_playback_message))
+      .build()
+
+  private fun createRestartNotification(): Notification =
+    NotificationCompat.Builder(this, "playback_controls_notification_channel")
+      .setSmallIcon(R.drawable.ic_baseline_library_music_24)
+      .setContentText(getString(R.string.restart_playback_message))
       .build()
 
   private fun internalStartForeground(notification: Notification) {

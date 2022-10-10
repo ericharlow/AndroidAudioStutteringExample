@@ -106,12 +106,17 @@ public class DownloadTracker {
     return download != null && download.state != Download.STATE_FAILED ? download.request : null;
   }
 
-  public void toggleDownload(
+  /**
+   *
+   * @return true if the download was deleted
+   */
+  public boolean toggleDownload(
       FragmentManager fragmentManager, MediaItem mediaItem, RenderersFactory renderersFactory) {
     @Nullable Download download = downloads.get(checkNotNull(mediaItem.localConfiguration).uri);
     if (download != null && download.state != Download.STATE_FAILED) {
       DownloadService.sendRemoveDownload(
           context, DemoDownloadService.class, download.request.id, /* foreground= */ false);
+      return true;
     } else {
       if (startDownloadDialogHelper != null) {
         startDownloadDialogHelper.release();
@@ -122,6 +127,7 @@ public class DownloadTracker {
               DownloadHelper.forMediaItem(context, mediaItem, renderersFactory, dataSourceFactory),
               mediaItem);
     }
+    return false;
   }
 
   private void loadDownloads() {
