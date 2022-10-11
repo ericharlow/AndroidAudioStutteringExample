@@ -83,6 +83,10 @@ class AudioService : MediaBrowserServiceCompat() {
           player.setMediaSource(mediaSource)
           player.playWhenReady = true
           player.playbackParameters = PlaybackParameters(1.75F, 1.0F)
+          player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true)
+            .build()
           player.addAnalyticsListener(analyticsListener)
           player.prepare()
           player.play()

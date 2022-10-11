@@ -28,6 +28,7 @@ import androidx.annotation.RequiresApi;
 import androidx.fragment.app.FragmentManager;
 
 import com.example.androidaudiostutteringexample.R;
+import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.RenderersFactory;
@@ -46,6 +47,7 @@ import com.google.android.exoplayer2.offline.DownloadRequest;
 import com.google.android.exoplayer2.offline.DownloadService;
 import com.google.android.exoplayer2.source.TrackGroup;
 import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
 import com.google.android.exoplayer2.trackselection.TrackSelectionParameters;
 import com.google.android.exoplayer2.upstream.DataSource;
@@ -329,7 +331,15 @@ public class DownloadTracker {
 //              /* onTracksSelectedListener= */ this,
 //              /* onDismissListener= */ this);
 //      trackSelectionDialog.show(fragmentManager, /* tag= */ null);
-      onTracksSelected(DownloadHelper.getDefaultTrackSelectorParameters(context));
+      TrackSelectionParameters trackSelectionParameters =
+              DefaultTrackSelector.Parameters.getDefaults(context)
+              .buildUpon()
+              .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true)
+              .setConstrainAudioChannelCountToDeviceCapabilities(true)
+              .setExceedAudioConstraintsIfNecessary(false)
+              .setForceLowestBitrate(true)
+              .build();
+      onTracksSelected(trackSelectionParameters);
     }
 
     /**
